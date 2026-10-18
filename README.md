@@ -37,7 +37,7 @@ Si el origen es un PDF de varias páginas y el destino una imagen, se crea una c
 
 ## Estado y plataformas
 
-El proyecto está en **fase inicial (0.1.0)**: el motor de conversión y la aplicación funcionan, pero faltan piezas (ver [Hoja de ruta](#hoja-de-ruta)).
+El proyecto está en **fase inicial (0.1.1)**: el motor de conversión y la aplicación funcionan, pero faltan piezas (ver [Hoja de ruta](#hoja-de-ruta)).
 
 | Sistema | Estado | Qué está probado |
 |---|---|---|
@@ -82,9 +82,9 @@ Para desinstalar: *Configuración → Aplicaciones*, o la tuerca → *Desinstala
 Los paquetes los genera el flujo de lanzamiento (`.github/workflows/release.yml`: al subir una etiqueta `v*` construye los paquetes de los tres sistemas y deja un borrador de release) o se construyen a mano según [Compilar](#compilar-desde-el-código):
 
 ```bash
-sudo apt install ./Converter_0.1.0_amd64.deb         # Debian, Ubuntu y derivadas
-sudo dnf install ./Converter-0.1.0-1.x86_64.rpm      # Fedora, RHEL, openSUSE
-chmod +x Converter_0.1.0_amd64.AppImage && ./Converter_0.1.0_amd64.AppImage
+sudo apt install ./Converter_0.1.1_amd64_Linux.deb         # Debian, Ubuntu y derivadas
+sudo dnf install ./Converter-0.1.1-1.x86_64_Linux.rpm      # Fedora, RHEL, openSUSE
+chmod +x Converter_0.1.1_amd64_Linux.AppImage && ./Converter_0.1.1_amd64_Linux.AppImage
 ```
 
 Los paquetes llevan WordCraft dentro. `libreoffice-writer` solo hace falta para **PDF → Word** (instálalo con tu gestor de paquetes; si falta, la aplicación te dice cómo). Los `.deb` y `.rpm` recomiendan unas fuentes pequeñas compatibles con Calibri y Arial (`fonts-crosextra-carlito`, `fonts-liberation`) para que los documentos de Word se maqueten como en Word. Necesitan glibc 2.35 o superior (Ubuntu 22.04+, Debian 12+, Fedora 36+). Una vez instalado, «Abrir con Converter» aparece para los formatos que convierte; desde una terminal: `converter foto.png informe.docx`.

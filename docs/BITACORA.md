@@ -12,6 +12,13 @@ Registro cronológico de qué se hizo, qué se decidió y por qué, para poder r
 
 ## Historial
 
+### 2026-10-18 · Sesión 1 (cont. 14) — Release v0.1.1 con el arreglo del Explorador
+
+**Petición del usuario**: commit, push y un release nuevo con el arreglo de las pestañas del Explorador (cont. 13).
+
+**Resultado**: la versión sube a **0.1.1** (`Cargo.toml`, `tauri.conf.json`, las dependencias entre crates y `Cargo.lock`, solo los cuatro crates propios) y se publica la etiqueta **`v0.1.1`**, sin tocar `v0.1.0`: una etiqueta de un release ya publicado no se mueve. Los instaladores salen con `0.1.1` y el sistema en el nombre. El README usa los nombres nuevos de los paquetes de Linux.
+1. **Nota**: el usuario pidió el release sin haber confirmado aún que el arreglo funciona con la pulsación real del atajo y el Explorador en primer plano (la verificación fue con ventanas reales leídas por `HWND`); si algo falla, se corrige en una `v0.1.2`.
+
 ### 2026-10-18 · Sesión 1 (cont. 13) — «No hay nada seleccionado» en el Explorador con pestañas
 
 **Problema del usuario**: con un documento seleccionado en el Escritorio la paleta funciona, pero dentro del Explorador de archivos dice que no hay nada seleccionado.
