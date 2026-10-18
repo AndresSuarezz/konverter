@@ -142,10 +142,12 @@ jobs:
               macos-*) label=macOS ;;
               *) echo "artefacto desconocido: $dir" >&2; exit 1 ;;
             esac
-            for file in "$dir"*; do
+            # Solo archivos, a cualquier profundidad: el artefacto de Linux trae subcarpetas
+            # (deb/, rpm/, appimage/) y el de Windows y macOS no.
+            while IFS= read -r file; do
               base="$(basename "$file")"
               cp "$file" "release/${base%.*}_${label}.${base##*.}"
-            done
+            done < <(find "$dir" -type f)
           done
           (cd release && sha256sum * > SHA256SUMS.txt)
           ls -la release
