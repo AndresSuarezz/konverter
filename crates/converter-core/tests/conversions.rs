@@ -109,8 +109,33 @@ fn every_published_pair_converts_a_real_file() {
         }
     }
     // 6 imágenes -> 5 imágenes + PDF; 6 pares de datos; PDF -> PNG, JPG, WEBP, TIFF y TXT;
-    // DOCX -> TXT; PDF -> MD. (DOCX/DOC/MD -> PDF, DOC -> DOCX y PDF -> DOCX van por un programa externo.)
-    assert_eq!(pairs, 6 * 6 + 6 + 5 + 1 + 1);
+    // DOCX -> TXT; PDF -> MD; MD -> DOCX (Rust puro). (DOCX/DOC/MD -> PDF, DOC -> DOCX y PDF ->
+    // DOCX van por un programa externo.)
+    assert_eq!(pairs, 6 * 6 + 6 + 5 + 1 + 1 + 1);
+}
+
+#[test]
+fn markdown_to_docx_keeps_the_content_when_read_back_by_an_independent_reader() {
+    // El DOCX se lee con el lector de DOCX → TXT del proyecto (otro código que el generador).
+    let docx = convert(&sample(Format::Markdown), Format::Markdown, Format::Docx);
+    assert!(docx.starts_with(b"PK"), "es un ZIP");
+    let txt = convert(&docx, Format::Docx, Format::Txt);
+    let text = text(&txt);
+    for expected in [
+        "Informe de prueba",
+        "Hola mundo, ñandú y café: acentuación correcta.",
+        "uno",
+        "dos",
+        "Producto\tPrecio",
+        "Café\t2.500",
+        "cargo build",
+        "Más en la web.",
+        "[imagen: logo]",
+    ] {
+        assert!(text.contains(expected), "falta {expected:?} en {text:?}");
+    }
+    // Nada de la imagen remota se descargó ni se coló como enlace.
+    assert!(!text.contains("127.0.0.1"), "{text:?}");
 }
 
 #[test]

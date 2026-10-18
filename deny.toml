@@ -1,0 +1,64 @@
+# Política de cargo-deny (https://embarkstudios.github.io/cargo-deny/). Se ejecuta con
+# `cargo deny check` y en CI. Las dependencias de código siguen la misma regla que el resto del
+# proyecto: solo licencias permisivas, nunca GPL/AGPL/LGPL enlazadas (ver docs/REQUERIMIENTOS.md).
+# Los programas copyleft (LibreOffice, Tesseract…) solo se usan como procesos externos.
+#
+# Idea tomada de pdfcraft (MIT OR Apache-2.0); ver docs/REFERENCIAS-CRAFT.md.
+
+[graph]
+all-features = true
+
+[licenses]
+confidence-threshold = 0.9
+allow = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "BSL-1.0",
+    "CC0-1.0",
+    # Copyleft débil, por archivo: obliga a mantener abiertos los archivos MPL que se modifiquen, no
+    # contamina el resto del programa. Llega solo por Tauri (cssparser, selectors, dtoa-short…) y
+    # es la misma licencia que LibreOffice. Al redistribuir hay que conservar el aviso (ver
+    # docs/DISTRIBUCION.md, «Licencias»).
+    "MPL-2.0",
+    # Datos (la lista de autoridades de certificación de webpki-roots), permisiva.
+    "CDLA-Permissive-2.0",
+]
+
+[licenses.private]
+ignore = true
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+
+[advisories]
+yanked = "warn"
+ignore = [
+    # `zip` 8.6.0, que trae calamine 0.36.1 (lector de XLSX; su última versión exige `zip ^8.6`).
+    # Los tres avisos afectan a `ZipArchive::extract()` / `ZipStreamReader::extract()` (symlinks y
+    # bits SUID al volcar un ZIP a disco); calamine lee las entradas en memoria y nunca extrae, ni
+    # nosotros llamamos a `extract()` (nuestro `zip` directo es el 9.x, ya corregido). Revisar al
+    # salir un calamine con `zip 9`.
+    { id = "RUSTSEC-2026-0367", reason = "zip 8.6 via calamine: solo afecta a extract(), que no se usa" },
+    { id = "RUSTSEC-2026-0368", reason = "zip 8.6 via calamine: solo afecta a extract(), que no se usa" },
+    { id = "RUSTSEC-2026-0369", reason = "zip 8.6 via calamine: solo afecta a extract(), que no se usa" },
+    # Sin mantenimiento (no son vulnerabilidades). zvariant y zbus_names llegan por
+    # tauri-plugin-single-instance (D-Bus, solo Linux); proc-macro-error es una macro de
+    # compilación del árbol GTK3 de Tauri en Linux y no entra en el binario.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant sin mantenimiento; D-Bus de single-instance (Linux)" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names sin mantenimiento; D-Bus de single-instance (Linux)" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive sin mantenimiento; D-Bus de single-instance (Linux)" },
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: macro de compilación de GTK3 (Tauri en Linux)" },
+]

@@ -131,8 +131,11 @@ async function call(name, args) {
       managed_mb: new URLSearchParams(location.search).get("lo") === "managed" ? 690 : null,
       can_uninstall_app: new URLSearchParams(location.search).has("app"),
       word: true,
+      wordcraft: new URLSearchParams(location.search).get("wc") !== "none",
+      can_install_libreoffice: true,
+      install_hint: "",
       shortcut: "Ctrl+Alt+Espacio",
-      offer: { id: "libreoffice", title: "LibreOffice", detail: "Convierte documentos sin otros programas." },
+      offer: { id: "libreoffice", title: "LibreOffice", detail: "Hace falta solo para PDF → Word." },
     };
   }
   if (name === "save_settings") return args.settings;
@@ -254,16 +257,21 @@ function renderSettings() {
 
   const sections = [];
 
+  // LibreOffice ya no es imprescindible: WordCraft hace casi todo. Solo hace falta para PDF → Word.
   const installRow = lo
     ? el("div", { class: "status ok" }, `LibreOffice: ${loText}`)
-    : el("div", { class: "status" }, "LibreOffice: no instalado ", el("button", { type: "button", class: "act primary", onclick: () => { closeSettings(); install(view.offer, null); } }, "Instalar"));
+    : view.can_install_libreoffice
+      ? el("div", { class: "status" }, "LibreOffice: no instalado (solo hace falta para PDF → Word) ", el("button", { type: "button", class: "act primary", onclick: () => { closeSettings(); install(view.offer, null); } }, "Instalar"))
+      : el("div", { class: "status" }, `LibreOffice: no instalado (solo hace falta para PDF → Word). ${view.install_hint}`);
   sections.push(
     el("h3", {}, "Documentos (Word, PDF, Markdown)"),
     row("Programa", segmented([
-      { value: "auto", label: "Automático", title: "LibreOffice si está; si no, Word" },
+      { value: "auto", label: "Automático", title: "WordCraft si sabe hacerlo; si no, LibreOffice o Word" },
+      { value: "wordcraft", label: "WordCraft", disabled: !view.wordcraft, title: view.wordcraft ? "Rápido; no hace PDF → Word" : "No se encontró wordcraft-cli" },
       { value: "libreoffice", label: "LibreOffice" },
       { value: "word", label: "Word", disabled: !view.word, title: view.word ? "" : "Word no está instalado" },
     ], s.document_engine, set("document_engine"))),
+    el("div", { class: "status" + (view.wordcraft ? " ok" : "") }, `WordCraft: ${view.wordcraft ? "incluido en la aplicación" : "no encontrado"}`),
     installRow,
     el("div", { class: "status" + (view.word ? " ok" : "") }, `Word: ${view.word ? "disponible" : "no encontrado"}`),
   );

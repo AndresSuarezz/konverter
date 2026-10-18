@@ -410,7 +410,9 @@ Function PageLeaveReinstall
   reinst_done:
 FunctionEnd
 
-; 4b. (Converter) Tipo de instalación: completa o ligera
+; 4b. (Converter) Tipo de instalación. Solo existe en la variante que lleva LibreOffice dentro
+; (`build-installers.ps1 -ConLibreOffice`, variable CVT_LO_DIR): el instalador normal no la muestra.
+; $InstallFull = 1 significa «con LibreOffice»; 0, «estándar» (WordCraft ya viaja siempre).
 Var InstallFull
 Var TypeFullRadio
 Var TypeLightRadio
@@ -422,17 +424,18 @@ Var TypeLightRadio
 ; instalación anterior si la hay.
 Function InitInstallType
   !ifdef HAS_BUNDLED_LO
-    StrCpy $InstallFull 1
-    ; Reinstalar o actualizar respeta lo que había: si no tenía LibreOffice, sigue siendo ligera.
-    ${If} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
-    ${AndIfNot} ${FileExists} "$INSTDIR\libreoffice\program\soffice.exe"
-      StrCpy $InstallFull 0
+    StrCpy $InstallFull 0
+    ; Reinstalar o actualizar respeta lo que había: si ya tenía LibreOffice dentro, lo conserva.
+    ${If} ${FileExists} "$INSTDIR\libreoffice\program\soffice.exe"
+      StrCpy $InstallFull 1
     ${EndIf}
-    ; Instalación silenciosa o con script: /TYPE=completa|ligera (también full|light).
+    ; Instalación silenciosa o con script: /TYPE=estandar|completa (también standard|full|ligera|light).
     ${GetOptions} $CMDLINE "/TYPE=" $0
     ${IfNot} ${Errors}
       ${If} $0 == "ligera"
       ${OrIf} $0 == "light"
+      ${OrIf} $0 == "estandar"
+      ${OrIf} $0 == "standard"
         StrCpy $InstallFull 0
       ${ElseIf} $0 == "completa"
       ${OrIf} $0 == "full"
@@ -458,15 +461,15 @@ Function PageInstallType
     Abort
   ${EndIf}
 
-  ${NSD_CreateRadioButton} 0 2u 100% 10u "Completa (recomendada)"
-  Pop $TypeFullRadio
-  ${NSD_AddStyle} $TypeFullRadio ${WS_GROUP}
-  ${NSD_CreateLabel} 14u 14u -14u 32u "Incluye LibreOffice dentro de la aplicación. Convierte Word, PDF y Markdown sin internet y sin instalar nada más.$\r$\n$\r$\nOcupa unos 720 MB en disco."
+  ${NSD_CreateRadioButton} 0 2u 100% 10u "Estándar (recomendada)"
+  Pop $TypeLightRadio
+  ${NSD_AddStyle} $TypeLightRadio ${WS_GROUP}
+  ${NSD_CreateLabel} 14u 14u -14u 44u "Todo lo necesario, sin internet: imágenes, CSV, Excel y JSON, PDF a imagen o texto, y documentos de Word (DOCX y DOC) y Markdown a PDF, en una fracción de segundo.$\r$\n$\r$\nOcupa unos 60 MB en disco. Solo PDF a Word necesita LibreOffice: la aplicación ofrecerá descargarlo (374 MB) la primera vez."
   Pop $0
 
-  ${NSD_CreateRadioButton} 0 62u 100% 10u "Ligera"
-  Pop $TypeLightRadio
-  ${NSD_CreateLabel} 14u 74u -14u 62u "Solo la aplicación: unos 25 MB en disco. Las imágenes, CSV y Excel, y el paso de PDF a imagen o texto funcionan igual.$\r$\n$\r$\nPara convertir Word y Markdown hace falta LibreOffice: la primera vez la aplicación lo descarga (374 MB, con internet), o usa el que ya tengas instalado o Word. Se puede instalar o quitar después desde la tuerca de la aplicación."
+  ${NSD_CreateRadioButton} 0 68u 100% 10u "Con LibreOffice"
+  Pop $TypeFullRadio
+  ${NSD_CreateLabel} 14u 80u -14u 44u "Añade LibreOffice dentro de la aplicación (unos 690 MB más) para convertir también PDF a Word sin internet y tener un motor alternativo.$\r$\n$\r$\nOcupa unos 750 MB en disco. Se puede quitar después desde la tuerca de la aplicación."
   Pop $0
 
   ${If} $InstallFull = 1
@@ -474,7 +477,7 @@ Function PageInstallType
   ${Else}
     ${NSD_Check} $TypeLightRadio
   ${EndIf}
-  ${NSD_SetFocus} $TypeFullRadio
+  ${NSD_SetFocus} $TypeLightRadio
   nsDialogs::Show
 FunctionEnd
 

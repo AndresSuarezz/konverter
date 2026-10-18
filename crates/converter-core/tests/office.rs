@@ -319,6 +319,135 @@ fn word_convert_file_writes_next_to_the_original() {
     assert!(fs::read(&out[0]).unwrap().starts_with(b"%PDF-"));
 }
 
+// ----------------------------------------------------------- WordCraft
+
+/// Los pares que WordCraft sabe hacer (PDF → DOCX no): ver `office::wordcraft_supports`.
+const WORDCRAFT_PAIRS: [(Format, Format); 4] = [
+    (Format::Docx, Format::Pdf),
+    (Format::Doc, Format::Pdf),
+    (Format::Markdown, Format::Pdf),
+    (Format::Doc, Format::Docx),
+];
+
+#[test]
+#[ignore = "requiere wordcraft-cli (scripts/build-wordcraft.ps1 o CONVERTER_WORDCRAFT)"]
+fn wordcraft_converts_every_pair_it_supports_with_real_content() {
+    assert!(
+        converter_core::find_wordcraft().is_some(),
+        "no se encontró wordcraft-cli"
+    );
+    for (from, to) in WORDCRAFT_PAIRS {
+        let name = match from {
+            Format::Docx => "sample.docx",
+            Format::Doc => "sample.doc",
+            _ => "sample.md",
+        };
+        // `Auto` debe elegir WordCraft para estos pares; se fuerza a mano para no depender de él.
+        let out = convert(&read(name), from, to, DocumentEngine::WordCraft);
+        match to {
+            Format::Pdf => {
+                assert!(out.starts_with(b"%PDF-"), "{from} -> PDF");
+                let text = flat(&pdf_text(&out));
+                assert!(
+                    text.contains("Hola mundo, ñandú y café: acentuación correcta."),
+                    "{from} -> PDF: {text:?}"
+                );
+                if from == Format::Markdown {
+                    for expected in [
+                        "Informe de prueba",
+                        "uno",
+                        "dos",
+                        "Producto",
+                        "2.500",
+                        "cargo build",
+                        "la web",
+                        "[imagen: logo]",
+                    ] {
+                        assert!(text.contains(expected), "falta {expected:?}: {text:?}");
+                    }
+                }
+            }
+            _ => {
+                assert!(out.starts_with(b"PK"), "{from} -> DOCX es un ZIP");
+                let text = flat(&docx_text(&out));
+                assert!(
+                    text.contains("Hola mundo, ñandú y café: acentuación correcta."),
+                    "{from} -> DOCX: {text:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+#[ignore = "requiere wordcraft-cli (scripts/build-wordcraft.ps1 o CONVERTER_WORDCRAFT)"]
+fn wordcraft_docx_to_pdf_keeps_the_page_size_and_is_fast() {
+    let started = std::time::Instant::now();
+    let pdf = convert(
+        &read("sample.docx"),
+        Format::Docx,
+        Format::Pdf,
+        DocumentEngine::WordCraft,
+    );
+    let elapsed = started.elapsed();
+    let pages = Engine::default()
+        .convert_bytes_pages(
+            &pdf,
+            Format::Pdf,
+            Format::Png,
+            &ConvertOptions {
+                pdf_dpi: 72,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(pages.len(), 1);
+    let page = image::load_from_memory(&pages[0]).unwrap();
+    assert_eq!((page.width(), page.height()), (595, 842), "A4 como el DOCX");
+    // El motivo de usarlo: LibreOffice tarda ~20 s. Margen amplio para no depender de la máquina.
+    assert!(elapsed.as_secs() < 10, "tardó {elapsed:?}");
+}
+
+#[test]
+#[ignore = "requiere wordcraft-cli (scripts/build-wordcraft.ps1 o CONVERTER_WORDCRAFT)"]
+fn wordcraft_reports_a_corrupt_document_instead_of_hanging() {
+    let started = std::time::Instant::now();
+    let err = Engine::default()
+        .convert_bytes(
+            b"PK\x03\x04esto no es un docx",
+            Format::Docx,
+            Format::Pdf,
+            &with(DocumentEngine::WordCraft),
+        )
+        .unwrap_err();
+    assert!(
+        matches!(
+            err,
+            Error::External {
+                tool: "WordCraft",
+                ..
+            }
+        ),
+        "{err}"
+    );
+    assert!(started.elapsed().as_secs() < 30, "{:?}", started.elapsed());
+}
+
+#[test]
+#[ignore = "requiere wordcraft-cli (scripts/build-wordcraft.ps1 o CONVERTER_WORDCRAFT)"]
+fn wordcraft_convert_file_writes_next_to_the_original() {
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("Mi informe ñ.docx");
+    fs::copy(fixture("sample.docx"), &source).unwrap();
+    let before = fs::read(&source).unwrap();
+    let out = Engine::default()
+        .convert_file(&source, Format::Pdf, &with(DocumentEngine::WordCraft))
+        .unwrap();
+    assert_eq!(out, [dir.path().join("Mi informe ñ.pdf")]);
+    assert_eq!(fs::read(&source).unwrap(), before);
+    assert!(fs::read(&out[0]).unwrap().starts_with(b"%PDF-"));
+}
+
 // --------------------------------------------------------- LibreOffice
 
 #[test]

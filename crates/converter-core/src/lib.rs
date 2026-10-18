@@ -22,6 +22,7 @@ mod error;
 mod format;
 mod image_conv;
 mod markdown;
+mod md_docx;
 mod office;
 mod output;
 mod pdf;
@@ -35,8 +36,8 @@ pub use engine::{Engine, Target};
 pub use error::{Error, Result};
 pub use format::{Family, Format};
 pub use office::{
-    COMPONENTS_DIR_ENV, DocumentEngines, LIBREOFFICE_ENV, components_dir, document_engines,
-    find_libreoffice,
+    COMPONENTS_DIR_ENV, DocumentEngines, LIBREOFFICE_ENV, WORDCRAFT_ENV, components_dir,
+    document_engines, find_libreoffice, find_wordcraft, libreoffice_install_hint,
 };
 pub use pdf::{PDFIUM_DIR_ENV, default_pdfium_dirs};
 pub use ranking::popularity;

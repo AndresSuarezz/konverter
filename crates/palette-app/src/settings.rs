@@ -15,9 +15,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EngineChoice {
-    /// LibreOffice si está, si no Word.
+    /// WordCraft si sabe hacerlo (rápido, viene con la aplicación); si no, LibreOffice y Word.
     #[default]
     Auto,
+    Wordcraft,
     Libreoffice,
     Word,
 }
@@ -75,6 +76,7 @@ impl Settings {
             },
             document_engine: match self.document_engine {
                 EngineChoice::Auto => DocumentEngine::Auto,
+                EngineChoice::Wordcraft => DocumentEngine::WordCraft,
                 EngineChoice::Libreoffice => DocumentEngine::LibreOffice,
                 EngineChoice::Word => DocumentEngine::Word,
             },
@@ -194,6 +196,22 @@ mod tests {
             (70, 65, 200)
         );
         assert_eq!(options.pdf_paper, PdfPaper::Letter);
+    }
+
+    #[test]
+    fn the_wordcraft_choice_is_saved_by_name_and_maps_to_the_engine() {
+        assert_eq!(
+            serde_json::to_string(&EngineChoice::Wordcraft).unwrap(),
+            "\"wordcraft\""
+        );
+        let loaded: Settings = serde_json::from_str(r#"{"document_engine":"wordcraft"}"#).unwrap();
+        assert_eq!(
+            loaded.to_options().document_engine,
+            DocumentEngine::WordCraft
+        );
+        // Un archivo de ajustes de una versión anterior (sin esta opción) sigue siendo válido.
+        let old: Settings = serde_json::from_str(r#"{"document_engine":"libreoffice"}"#).unwrap();
+        assert_eq!(old.document_engine, EngineChoice::Libreoffice);
     }
 
     #[test]

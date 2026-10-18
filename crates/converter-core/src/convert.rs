@@ -22,9 +22,13 @@ pub enum WebpMode {
 /// Programa que convierte los documentos de Office.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DocumentEngine {
-    /// Word si está instalado (Windows); si no, LibreOffice.
+    /// El mejor disponible **para cada par**: WordCraft (el incluido con la aplicación) si sabe
+    /// hacerlo; si no, LibreOffice y, por último, Word (Windows).
     #[default]
     Auto,
+    /// WordCraft: rápido y ligero (Rust puro), hace DOCX/DOC/Markdown → PDF y DOC → DOCX. Para lo
+    /// que no sabe (PDF → DOCX) se usa el motor que haya, como en `Auto`.
+    WordCraft,
     Word,
     LibreOffice,
 }

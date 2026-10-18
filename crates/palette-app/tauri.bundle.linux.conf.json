@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "rpm", "appimage"],
+    "publisher": "Converter",
+    "shortDescription": "Convierte archivos con una paleta radial",
+    "longDescription": "Selecciona un archivo, pulsa un atajo y elige el formato de destino en una paleta radial: imágenes, datos, PDF y documentos.",
+    "category": "Utility",
+    "resources": {
+      "../../vendor/bin/pdfium/libpdfium.so": "pdfium/libpdfium.so",
+      "../../vendor/bin/pdfium/LICENSE-pdfium": "pdfium/LICENSE-pdfium",
+      "../../vendor/bin/wordcraft/wordcraft-cli": "wordcraft/wordcraft-cli",
+      "../../vendor/bin/wordcraft/LICENSE-MIT": "wordcraft/LICENSE-MIT",
+      "../../vendor/bin/wordcraft/LICENSE-APACHE": "wordcraft/LICENSE-APACHE",
+      "../../vendor/bin/wordcraft/NOTICE": "wordcraft/NOTICE",
+      "../../vendor/bin/wordcraft/ATTRIBUTION.md": "wordcraft/ATTRIBUTION.md",
+      "../../vendor/bin/wordcraft/VERSION": "wordcraft/VERSION"
+    },
+    "linux": {
+      "deb": {
+        "recommends": ["fonts-crosextra-carlito", "fonts-liberation"],
+        "desktopTemplate": "linux/converter.desktop"
+      },
+      "rpm": {
+        "recommends": ["google-carlito-fonts", "liberation-fonts"],
+        "desktopTemplate": "linux/converter.desktop"
+      }
+    }
+  }
+}

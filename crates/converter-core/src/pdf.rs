@@ -2,7 +2,7 @@
 //! que se carga en tiempo de ejecución desde un archivo `pdfium.dll` / `libpdfium.so` /
 //! `libpdfium.dylib`; si no está, se devuelve [`Error::MissingDependency`]).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
 use image::{ColorType, DynamicImage};
@@ -44,9 +44,9 @@ impl PdfConverter {
     }
 }
 
-/// Dónde se busca pdfium por defecto: `CONVERTER_PDFIUM_DIR`; junto al ejecutable (y en su
-/// subcarpeta `pdfium`), que es donde irá empaquetado; y, solo en compilaciones de depuración,
-/// `vendor/bin/pdfium` del repositorio (lo deja `scripts/fetch-pdfium.ps1`).
+/// Dónde se busca pdfium por defecto: `CONVERTER_PDFIUM_DIR`; las carpetas donde lo deja cada
+/// paquete (ver [`packaged_pdfium_dirs`]); y, solo en compilaciones de depuración,
+/// `vendor/bin/pdfium` del repositorio (lo dejan `scripts/fetch-pdfium.ps1` y `.sh`).
 pub fn default_pdfium_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
     if let Some(dir) = std::env::var_os(PDFIUM_DIR_ENV) {
@@ -56,8 +56,7 @@ pub fn default_pdfium_dirs() -> Vec<PathBuf> {
         .ok()
         .and_then(|exe| exe.parent().map(PathBuf::from))
     {
-        dirs.push(exe_dir.join("pdfium"));
-        dirs.push(exe_dir);
+        dirs.extend(packaged_pdfium_dirs(&exe_dir));
     }
     #[cfg(debug_assertions)]
     dirs.push(PathBuf::from(concat!(
@@ -65,6 +64,20 @@ pub fn default_pdfium_dirs() -> Vec<PathBuf> {
         "/../../vendor/bin/pdfium"
     )));
     dirs
+}
+
+/// Dónde deja cada paquete la biblioteca de pdfium, relativo a la carpeta del ejecutable:
+/// - `pdfium/`: Windows (instalador NSIS) y, también, la carpeta de un árbol de desarrollo;
+/// - `../Resources/pdfium`: macOS (`Contents/MacOS` → `Contents/Resources`);
+/// - `../lib/Converter/pdfium`: Linux (`.deb`, `.rpm`, AppImage: `bin/` → `lib/<productName>/`);
+/// - el propio directorio del ejecutable.
+fn packaged_pdfium_dirs(exe_dir: &Path) -> Vec<PathBuf> {
+    vec![
+        exe_dir.join("pdfium"),
+        exe_dir.join("../Resources/pdfium"),
+        exe_dir.join("../lib/Converter/pdfium"),
+        exe_dir.to_path_buf(),
+    ]
 }
 
 fn is_raster_target(format: Format) -> bool {
@@ -185,7 +198,7 @@ fn pdfium(dirs: &[PathBuf]) -> Result<&'static Pdfium> {
             name: "pdfium",
             detail: format!(
                 "no se encontró la biblioteca (buscada en {}). Ejecuta scripts/fetch-pdfium.ps1 \
-                 o define {PDFIUM_DIR_ENV}",
+                 (Windows) o scripts/fetch-pdfium.sh (Linux y macOS), o define {PDFIUM_DIR_ENV}",
                 dirs.iter()
                     .map(|d| d.display().to_string())
                     .collect::<Vec<_>>()
@@ -299,6 +312,19 @@ fn pdf_to_text(dirs: &[PathBuf], input: &[u8]) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn looks_for_pdfium_where_each_package_leaves_it() {
+        let dirs = packaged_pdfium_dirs(Path::new("/opt/app/bin"));
+        // Windows, macOS (.app) y Linux (.deb/.rpm/AppImage), medidos con los paquetes reales.
+        for relative in ["pdfium", "../Resources/pdfium", "../lib/Converter/pdfium"] {
+            assert!(
+                dirs.contains(&Path::new("/opt/app/bin").join(relative)),
+                "falta {relative}"
+            );
+        }
+        assert!(dirs.contains(&PathBuf::from("/opt/app/bin")));
+    }
 
     #[test]
     fn declares_exactly_the_supported_pairs() {

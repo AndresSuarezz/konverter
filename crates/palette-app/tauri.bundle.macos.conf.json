@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "publisher": "Converter",
+    "shortDescription": "Convierte archivos con una paleta radial",
+    "longDescription": "Selecciona un archivo, pulsa un atajo y elige el formato de destino en una paleta radial: imágenes, datos, PDF y documentos.",
+    "category": "Utility",
+    "resources": {
+      "../../vendor/bin/pdfium/libpdfium.dylib": "pdfium/libpdfium.dylib",
+      "../../vendor/bin/pdfium/LICENSE-pdfium": "pdfium/LICENSE-pdfium",
+      "../../vendor/bin/wordcraft/wordcraft-cli": "wordcraft/wordcraft-cli",
+      "../../vendor/bin/wordcraft/LICENSE-MIT": "wordcraft/LICENSE-MIT",
+      "../../vendor/bin/wordcraft/LICENSE-APACHE": "wordcraft/LICENSE-APACHE",
+      "../../vendor/bin/wordcraft/NOTICE": "wordcraft/NOTICE",
+      "../../vendor/bin/wordcraft/ATTRIBUTION.md": "wordcraft/ATTRIBUTION.md",
+      "../../vendor/bin/wordcraft/VERSION": "wordcraft/VERSION"
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}

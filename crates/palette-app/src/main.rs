@@ -89,10 +89,11 @@ fn summarize(sources: usize, written: &[PathBuf]) -> String {
 }
 
 /// Opciones de conversión a partir de los ajustes del usuario. La variable de entorno
-/// `CONVERTER_DOCUMENT_ENGINE=word|libreoffice` manda sobre el ajuste (pruebas y soporte).
+/// `CONVERTER_DOCUMENT_ENGINE=wordcraft|word|libreoffice` manda sobre el ajuste (pruebas y soporte).
 fn conversion_options(settings: &settings::Settings) -> ConvertOptions {
     let mut options = settings.to_options();
     match std::env::var("CONVERTER_DOCUMENT_ENGINE").as_deref() {
+        Ok("wordcraft") => options.document_engine = converter_core::DocumentEngine::WordCraft,
         Ok("word") => options.document_engine = converter_core::DocumentEngine::Word,
         Ok("libreoffice") => options.document_engine = converter_core::DocumentEngine::LibreOffice,
         _ => {}
@@ -131,8 +132,11 @@ async fn convert(state: State<'_, AppState>, format: String) -> Result<Outcome, 
                     written_all.extend(written);
                 }
                 Err(e) => {
+                    // Solo se ofrece descargar donde la aplicación sabe hacerlo; en el resto, el
+                    // mensaje del error ya explica cómo instalar LibreOffice.
                     if let converter_core::Error::MissingDependency { name, .. } = &e
                         && name.contains("LibreOffice")
+                        && components::libreoffice_installable()
                     {
                         outcome.needs = Some(palette::libreoffice_offer(
                             "Hace falta para este documento.",
@@ -211,9 +215,14 @@ struct SettingsView {
     settings: settings::Settings,
     /// "incluido" | "descargado" | "sistema" | nada si no hay LibreOffice.
     libreoffice: Option<&'static str>,
+    /// ¿Está `wordcraft-cli` (el motor preferido, viaja con la aplicación)?
+    wordcraft: bool,
     word: bool,
     shortcut: &'static str,
     offer: palette::Offer,
+    /// ¿Puede la aplicación descargar LibreOffice aquí? Si no, se muestra `install_hint`.
+    can_install_libreoffice: bool,
+    install_hint: String,
     /// Megabytes que ocupa el LibreOffice **descargado por la aplicación** (se puede quitar).
     managed_mb: Option<u64>,
     /// ¿Se puede desinstalar la aplicación desde aquí? Solo si se instaló con el instalador.
@@ -242,9 +251,12 @@ fn get_settings(state: State<'_, AppState>) -> Result<SettingsView, String> {
     Ok(SettingsView {
         settings: state.settings.lock().map_err(|e| e.to_string())?.clone(),
         libreoffice: libreoffice_source(),
+        wordcraft: converter_core::find_wordcraft().is_some(),
         word: converter_core::document_engines().word,
         shortcut: "Ctrl+Alt+Espacio",
-        offer: palette::libreoffice_offer("Convierte documentos sin otros programas."),
+        offer: palette::libreoffice_offer("Hace falta solo para convertir PDF a Word."),
+        can_install_libreoffice: components::libreoffice_installable(),
+        install_hint: converter_core::libreoffice_install_hint(),
         managed_mb: Some(components::managed_libreoffice_size() / 1_000_000).filter(|mb| *mb > 0),
         can_uninstall_app: app_uninstaller().is_some(),
     })
@@ -391,9 +403,11 @@ fn open_libreoffice_offer(app: &AppHandle) {
     };
     let payload = if converter_core::find_libreoffice().is_some() {
         palette::Payload::notice("LibreOffice ya está instalado")
+    } else if !components::libreoffice_installable() {
+        palette::Payload::notice(converter_core::libreoffice_install_hint())
     } else {
         palette::Payload::offer(palette::libreoffice_offer(
-            "Convierte documentos sin otros programas.",
+            "Hace falta solo para convertir PDF a Word.",
         ))
     };
     publish(&window, payload);
@@ -512,7 +526,7 @@ fn main() {
                     &MenuItem::with_id(
                         app,
                         "libreoffice",
-                        "Instalar LibreOffice…",
+                        "Instalar LibreOffice (PDF a Word)…",
                         true,
                         None::<&str>,
                     )?,

@@ -14,8 +14,8 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 components = { version = "0.1.0", path = "../components" }
-converter-core = { path = "../converter-core" }
-os-shell = { path = "../os-shell" }
+converter-core = { version = "0.1.0", path = "../converter-core" }
+os-shell = { version = "0.1.0", path = "../os-shell" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }

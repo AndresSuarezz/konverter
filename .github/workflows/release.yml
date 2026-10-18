@@ -1,0 +1,135 @@
+name: Release
+
+# Construye los paquetes de cada sistema y, si se lanza con una etiqueta `v*`, los deja en un
+# borrador de release de GitHub (revisa y publica a mano).
+#
+#   Windows : un instalador (Converter_<versión>_x64-setup.exe, ~16 MiB) con WordCraft y sin LibreOffice.
+#   Linux   : .deb, .rpm y AppImage (x86_64). Probado: .deb y .rpm construidos en Ubuntu 22.04.
+#   macOS   : .app y .dmg (Apple silicon e Intel). SIN PROBAR: falta firmar y notarizar.
+#
+# Nada de esto está firmado: Windows avisará con SmartScreen y macOS bloqueará el .app hasta que
+# se firme con un Developer ID (ver docs/DISTRIBUCION.md, «Pendiente»).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  # Versión del CLI de Tauri: fija porque crates/palette-app/nsis/installer.nsi es una copia de la
+  # plantilla de su tauri-bundler (ver scripts/build-installers.ps1).
+  TAURI_CLI: "@tauri-apps/cli@2.12.3"
+
+jobs:
+  windows:
+    name: Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Caché de wordcraft-cli
+        uses: actions/cache@v4
+        with:
+          path: vendor/bin/wordcraft
+          key: wordcraft-windows-${{ hashFiles('scripts/build-wordcraft.ps1') }}
+      # Descarga pdfium, compila wordcraft-cli y construye el instalador (~16 MiB, sin LibreOffice).
+      - name: Instalador
+        shell: pwsh
+        run: ./scripts/build-installers.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.exe
+          if-no-files-found: error
+
+  linux:
+    name: Linux x86_64
+    # Ubuntu 22.04 (glibc 2.35): un paquete compilado en un sistema antiguo funciona en los nuevos.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencias del sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev rpm fakeroot libfuse2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: pdfium
+        run: bash scripts/fetch-pdfium.sh
+      # wordcraft-cli, el motor de documentos (~5 min de compilación): se guarda en caché por versión.
+      - name: Caché de wordcraft-cli
+        uses: actions/cache@v4
+        with:
+          path: vendor/bin/wordcraft
+          key: wordcraft-linux-${{ hashFiles('scripts/build-wordcraft.sh') }}
+      - name: wordcraft-cli
+        run: bash scripts/build-wordcraft.sh
+      - name: Paquetes (.deb, .rpm, AppImage)
+        working-directory: crates/palette-app
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target/bundle
+          # AppImage sin FUSE (contenedores y CI).
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: npx --yes "$TAURI_CLI" build --config tauri.bundle.linux.conf.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            target/bundle/release/bundle/deb/*.deb
+            target/bundle/release/bundle/rpm/*.rpm
+            target/bundle/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+
+  macos:
+    name: macOS ${{ matrix.asset }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-latest, asset: mac-arm64 }
+          - { runner: macos-15-intel, asset: mac-x64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: pdfium
+        run: bash scripts/fetch-pdfium.sh --asset ${{ matrix.asset }}
+      - name: Caché de wordcraft-cli
+        uses: actions/cache@v4
+        with:
+          path: vendor/bin/wordcraft
+          key: wordcraft-${{ matrix.asset }}-${{ hashFiles('scripts/build-wordcraft.sh') }}
+      - name: wordcraft-cli
+        run: bash scripts/build-wordcraft.sh
+      - name: .app y .dmg
+        working-directory: crates/palette-app
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target/bundle
+        run: npx --yes "$TAURI_CLI" build --config tauri.bundle.macos.conf.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.asset }}
+          path: target/bundle/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  draft-release:
+    name: Borrador de release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: artifacts/**/*
+          fail_on_unmatched_files: true

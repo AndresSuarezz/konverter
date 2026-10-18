@@ -1,0 +1,4 @@
+# Los scripts de shell y las plantillas de Linux deben llevar saltos de línea LF aunque se
+# editen en Windows: con CRLF, `bash` falla en la CI con «\r: orden no encontrada».
+*.sh text eol=lf
+*.desktop text eol=lf

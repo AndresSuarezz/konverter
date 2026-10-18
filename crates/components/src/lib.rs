@@ -78,6 +78,12 @@ fn libreoffice_package() -> Result<Package, ComponentError> {
     }
 }
 
+/// ¿Puede la aplicación descargar LibreOffice en este sistema? Hoy solo en Windows x64; en el resto
+/// no se ofrece la descarga (se instala con el gestor de paquetes del sistema).
+pub fn libreoffice_installable() -> bool {
+    libreoffice_package().is_ok()
+}
+
 /// Tamaño aproximado de la descarga, en bytes, para avisar al usuario antes de empezar.
 pub fn libreoffice_download_size() -> Option<u64> {
     libreoffice_package().ok().map(|p| p.size)
@@ -230,6 +236,7 @@ fn check_path_length(destination: &Path) -> Result<(), ComponentError> {
 }
 
 /// Traduce el código de salida de `msiexec` y añade la línea relevante de su registro.
+#[cfg(any(windows, test))]
 fn explain_msi_failure(code: Option<i32>, log: &Path) -> String {
     let meaning = match code {
         Some(1603) => "error fatal durante la instalación",
@@ -646,6 +653,19 @@ fn sha256_of(path: &Path) -> Result<String, ComponentError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn libreoffice_is_downloadable_only_where_a_package_is_pinned() {
+        // Un paquete fijado (URL, tamaño, SHA-256) solo existe para Windows x64.
+        assert_eq!(
+            libreoffice_installable(),
+            cfg!(all(windows, target_arch = "x86_64"))
+        );
+        assert_eq!(
+            libreoffice_installable(),
+            libreoffice_download_size().is_some()
+        );
+    }
 
     #[test]
     fn sha256_matches_the_known_digest_of_abc() {

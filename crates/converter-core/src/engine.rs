@@ -6,6 +6,7 @@ use crate::docx_text::DocxTextConverter;
 use crate::error::{Error, Result};
 use crate::format::Format;
 use crate::image_conv::ImageConverter;
+use crate::md_docx::MarkdownDocxConverter;
 use crate::office::OfficeConverter;
 use crate::output::OutputSet;
 use crate::pdf::PdfConverter;
@@ -35,6 +36,7 @@ impl Default for Engine {
                 Box::new(TabularConverter),
                 Box::new(PdfConverter::default()),
                 Box::new(DocxTextConverter),
+                Box::new(MarkdownDocxConverter),
                 Box::new(OfficeConverter),
             ],
         }

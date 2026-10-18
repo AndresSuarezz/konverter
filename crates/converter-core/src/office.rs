@@ -1,15 +1,17 @@
-//! DOCX/DOC ↔ PDF con un motor externo: Microsoft Word (Windows, automatización COM a través de
-//! PowerShell) o LibreOffice (cualquier sistema, línea de comandos sin ventana).
+//! Documentos de Office (DOCX/DOC/Markdown → PDF, DOC → DOCX, PDF → DOCX) con un motor externo:
+//! **WordCraft** (Rust puro, 35 MB, el que viaja con la aplicación), LibreOffice (cualquier
+//! sistema) o Microsoft Word (Windows, automatización COM a través de PowerShell).
 //!
-//! No existe una forma fiable de hacerlo en Rust puro. El motor se elige con
-//! [`DocumentEngine`]; en modo automático se prefiere Word (máxima fidelidad y 0 MB extra) y,
-//! si no está, LibreOffice. Sin ninguno se devuelve [`Error::MissingDependency`].
+//! El motor se elige con [`DocumentEngine`] **por par de formatos**: en modo automático, WordCraft
+//! si sabe hacerlo (décimas de segundo frente a ~20 s de LibreOffice); para lo que no sabe
+//! (PDF → DOCX), LibreOffice y, por último, Word. Sin ninguno se devuelve
+//! [`Error::MissingDependency`]. Ver `docs/REFERENCIAS-CRAFT.md` para las mediciones.
 
 use std::fs;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -17,6 +19,7 @@ use crate::convert::{ConvertOptions, Converter, DocumentEngine, Fidelity};
 use crate::error::{Error, Result};
 use crate::format::Format;
 use crate::markdown;
+use crate::md_docx;
 use crate::tabular::decode_text;
 
 /// Variable de entorno que cambia la carpeta de componentes (instalaciones portables y pruebas).
@@ -24,6 +27,9 @@ pub const COMPONENTS_DIR_ENV: &str = "CONVERTER_COMPONENTS_DIR";
 
 /// Variable de entorno con la ruta de `soffice` (o de la carpeta `program` de LibreOffice).
 pub const LIBREOFFICE_ENV: &str = "CONVERTER_LIBREOFFICE";
+
+/// Variable de entorno con la ruta de `wordcraft-cli` (o de la carpeta que lo contiene).
+pub const WORDCRAFT_ENV: &str = "CONVERTER_WORDCRAFT";
 
 /// Tiempo máximo de una conversión; pasado, se mata el motor para no dejar procesos colgados.
 const TIMEOUT: Duration = Duration::from_secs(180);
@@ -58,9 +64,15 @@ impl Converter for OfficeConverter {
         if self.supports(from, to).is_none() {
             return Err(Error::Unsupported { from, to });
         }
-        let engine = pick_engine(options.document_engine)?;
-        // Markdown no lo entiende ningún motor: se convierte antes a HTML (Rust puro, seguro).
+        let engine = pick_engine(options.document_engine, from, to)?;
+        // Markdown no lo entiende ningún motor: se convierte antes (Rust puro, seguro). Con
+        // WordCraft, a DOCX, porque su importador de HTML ignora los anchos de las columnas de las
+        // tablas y el de DOCX los respeta; con LibreOffice y Word, a HTML, que imprimen bien.
         let (kind, payload) = match from {
+            Format::Markdown if matches!(engine, Engine::WordCraft(_)) => (
+                Input::Docx,
+                md_docx::to_docx(&decode_text(input), options.pdf_paper)?,
+            ),
             Format::Markdown => (
                 Input::Html,
                 markdown::to_html(&decode_text(input)).into_bytes(),
@@ -75,6 +87,7 @@ impl Converter for OfficeConverter {
         fs::write(&source, payload).map_err(|e| failure(engine.name(), e))?;
 
         let output = match &engine {
+            Engine::WordCraft(exe) => run_wordcraft(exe, dir.path(), &source, to)?,
             #[cfg(windows)]
             Engine::Word => run_word(dir.path(), &source, to)?,
             Engine::LibreOffice(soffice) => {
@@ -126,6 +139,7 @@ impl Input {
 // ----------------------------------------------------------- elección de motor
 
 enum Engine {
+    WordCraft(PathBuf),
     Word,
     LibreOffice(PathBuf),
 }
@@ -133,33 +147,127 @@ enum Engine {
 impl Engine {
     fn name(&self) -> &'static str {
         match self {
+            Engine::WordCraft(_) => "WordCraft",
             Engine::Word => "Microsoft Word",
             Engine::LibreOffice(_) => "LibreOffice",
         }
     }
 }
 
-fn pick_engine(preference: DocumentEngine) -> Result<Engine> {
-    let word = || word_available().then_some(Engine::Word);
-    let libreoffice = || find_libreoffice().map(Engine::LibreOffice);
-    let chosen = match preference {
-        // LibreOffice primero: es el mismo en todos los equipos y no depende de la versión de
-        // Office del usuario. Word queda como respaldo inmediato si LibreOffice aún no está.
-        DocumentEngine::Auto => libreoffice().or_else(word),
+/// Lo que WordCraft sabe hacer. PDF → DOCX **no**: no lee PDF, y el exportador de PdfCraft que
+/// lo intenta salió peor que LibreOffice en las pruebas (ver `docs/REFERENCIAS-CRAFT.md`).
+fn wordcraft_supports(from: Format, to: Format) -> bool {
+    matches!(
+        (from, to),
+        (Format::Docx | Format::Doc | Format::Markdown, Format::Pdf) | (Format::Doc, Format::Docx)
+    )
+}
+
+/// Los programas que hay ahora mismo (separado de [`choose_engine`] para poder probar la elección).
+struct Available {
+    wordcraft: Option<PathBuf>,
+    libreoffice: Option<PathBuf>,
+    word: bool,
+}
+
+/// El motor para un par de formatos. `Auto` y `WordCraft` van por el mismo camino: WordCraft si
+/// sabe hacerlo y está; si no (PDF → DOCX, o no está), LibreOffice y después Word. Elegir
+/// LibreOffice o Word a mano los fuerza.
+fn choose_engine(
+    preference: DocumentEngine,
+    from: Format,
+    to: Format,
+    available: &Available,
+) -> Option<Engine> {
+    let wordcraft = || {
+        available
+            .wordcraft
+            .clone()
+            .filter(|_| wordcraft_supports(from, to))
+            .map(Engine::WordCraft)
+    };
+    let libreoffice = || available.libreoffice.clone().map(Engine::LibreOffice);
+    let word = || available.word.then_some(Engine::Word);
+    match preference {
+        DocumentEngine::Auto | DocumentEngine::WordCraft => {
+            wordcraft().or_else(libreoffice).or_else(word)
+        }
         DocumentEngine::Word => word(),
         DocumentEngine::LibreOffice => libreoffice(),
+    }
+}
+
+fn pick_engine(preference: DocumentEngine, from: Format, to: Format) -> Result<Engine> {
+    let available = Available {
+        wordcraft: find_wordcraft(),
+        libreoffice: find_libreoffice(),
+        word: word_available(),
     };
-    chosen.ok_or_else(|| Error::MissingDependency {
-        name: match preference {
-            DocumentEngine::Auto => "Microsoft Word o LibreOffice",
-            DocumentEngine::Word => "Microsoft Word",
-            DocumentEngine::LibreOffice => "LibreOffice",
-        },
-        detail: format!(
-            "se necesita para convertir documentos de Office. Instala LibreOffice (gratuito; la \
-             aplicación puede descargarlo) o define {LIBREOFFICE_ENV} con la ruta de soffice"
-        ),
+    choose_engine(preference, from, to, &available).ok_or_else(|| {
+        let by_wordcraft = wordcraft_supports(from, to);
+        let (name, detail) = match preference {
+            DocumentEngine::Word => (
+                "Microsoft Word",
+                format!(
+                    "se necesita para convertir documentos de Office. {}",
+                    libreoffice_install_hint()
+                ),
+            ),
+            DocumentEngine::LibreOffice => (
+                "LibreOffice",
+                format!(
+                    "se necesita para convertir documentos de Office. {}",
+                    libreoffice_install_hint()
+                ),
+            ),
+            // El nombre contiene «LibreOffice»: la paleta ofrece descargarlo donde se puede.
+            _ if by_wordcraft => (
+                "WordCraft o LibreOffice",
+                format!(
+                    "WordCraft viene incluido con la aplicación (o define {WORDCRAFT_ENV} con la \
+                     ruta de wordcraft-cli). Alternativa: {}",
+                    libreoffice_install_hint()
+                ),
+            ),
+            // Word solo existe en Windows (se automatiza con COM/PowerShell).
+            _ if cfg!(windows) => (
+                "Microsoft Word o LibreOffice",
+                format!(
+                    "se necesita para convertir PDF a Word. {}",
+                    libreoffice_install_hint()
+                ),
+            ),
+            _ => (
+                "LibreOffice",
+                format!(
+                    "se necesita para convertir PDF a Word. {}",
+                    libreoffice_install_hint()
+                ),
+            ),
+        };
+        Error::MissingDependency { name, detail }
     })
+}
+
+/// Cómo conseguir LibreOffice en este sistema, para los mensajes de «falta LibreOffice». Solo
+/// Windows puede descargarlo la propia aplicación; en el resto se instala con el sistema.
+pub fn libreoffice_install_hint() -> String {
+    if cfg!(windows) {
+        format!(
+            "Instala LibreOffice (gratuito; la aplicación puede descargarlo) o define \
+             {LIBREOFFICE_ENV} con la ruta de soffice"
+        )
+    } else if cfg!(target_os = "macos") {
+        format!(
+            "Instala LibreOffice desde https://www.libreoffice.org (o con `brew install --cask \
+             libreoffice`) o define {LIBREOFFICE_ENV} con la ruta de soffice"
+        )
+    } else {
+        format!(
+            "Instala LibreOffice con tu gestor de paquetes (por ejemplo `sudo apt install \
+             libreoffice-writer`) o define {LIBREOFFICE_ENV} con la ruta de soffice"
+        )
+    }
 }
 
 /// Word está instalado si existe el ProgID `Word.Application` en el registro.
@@ -167,6 +275,7 @@ fn word_available() -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
+        use std::sync::OnceLock;
         static AVAILABLE: OnceLock<bool> = OnceLock::new();
         *AVAILABLE.get_or_init(|| {
             Command::new("reg")
@@ -227,7 +336,8 @@ fn bundled_libreoffice(exe: &str) -> Vec<PathBuf> {
     };
     vec![
         dir.join("libreoffice/program").join(exe),
-        dir.join("../lib/converter/libreoffice/program").join(exe),
+        // Linux (.deb, .rpm, AppImage): Tauri deja los recursos en `lib/<productName>/`.
+        dir.join("../lib/Converter/libreoffice/program").join(exe),
         dir.join("../Resources/libreoffice/program").join(exe),
         dir.join("../Resources/LibreOffice.app/Contents/MacOS/soffice"),
     ]
@@ -282,6 +392,8 @@ pub fn components_dir() -> PathBuf {
 /// Qué programas de documentos hay disponibles ahora mismo.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentEngines {
+    /// Ruta de `wordcraft-cli` (el que viaja con la aplicación, o el de `CONVERTER_WORDCRAFT`).
+    pub wordcraft: Option<PathBuf>,
     /// Ruta de `soffice` si hay un LibreOffice utilizable (gestionado, del sistema o por variable).
     pub libreoffice: Option<PathBuf>,
     pub word: bool,
@@ -289,9 +401,72 @@ pub struct DocumentEngines {
 
 pub fn document_engines() -> DocumentEngines {
     DocumentEngines {
+        wordcraft: find_wordcraft(),
         libreoffice: find_libreoffice(),
         word: word_available(),
     }
+}
+
+// -------------------------------------------------------------- WordCraft
+
+/// Busca `wordcraft-cli`: la variable de entorno y las carpetas donde lo deja cada paquete. **No
+/// mira el `PATH`**: otro `wordcraft-cli` de una versión distinta podría comportarse distinto de
+/// la que probamos (la fijada en `scripts/build-wordcraft.ps1`).
+pub fn find_wordcraft() -> Option<PathBuf> {
+    let exe = if cfg!(windows) {
+        "wordcraft-cli.exe"
+    } else {
+        "wordcraft-cli"
+    };
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Some(path) = std::env::var_os(WORDCRAFT_ENV).filter(|v| !v.is_empty()) {
+        let path = PathBuf::from(path);
+        candidates.push(if path.is_dir() { path.join(exe) } else { path });
+    }
+    if let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(PathBuf::from))
+    {
+        candidates.extend(packaged_wordcraft(&dir, exe));
+        // En desarrollo, el que deja scripts/build-wordcraft.ps1 en vendor/bin.
+        #[cfg(debug_assertions)]
+        candidates.push(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../vendor/bin/wordcraft")
+                .join(exe),
+        );
+    }
+    candidates.into_iter().find(|c| c.is_file())
+}
+
+/// Dónde deja cada paquete `wordcraft-cli`, relativo a la carpeta del ejecutable (como pdfium).
+fn packaged_wordcraft(exe_dir: &Path, exe: &str) -> Vec<PathBuf> {
+    vec![
+        exe_dir.join("wordcraft").join(exe),
+        exe_dir.join("../Resources/wordcraft").join(exe),
+        exe_dir.join("../lib/Converter/wordcraft").join(exe),
+        exe_dir.join(exe),
+    ]
+}
+
+/// `wordcraft-cli convert entrada salida`: el formato sale de las extensiones.
+fn run_wordcraft(exe: &Path, dir: &Path, source: &Path, to: Format) -> Result<PathBuf> {
+    let output = dir.join(format!("output.{}", to.extension()));
+    let mut command = Command::new(exe);
+    command
+        .arg("convert")
+        .arg(source)
+        .arg(&output)
+        // Sin esto escribiría preferencias y un registro en el perfil del usuario; con esto, solo
+        // a stderr (y sin el texto del documento).
+        .env("WORDCRAFT_NO_PREFS", "1");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    run_tool(command, "WordCraft")?;
+    Ok(output)
 }
 
 // ------------------------------------------------------------------- Word
@@ -501,6 +676,147 @@ fn kill_pid(pid: u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn all() -> Available {
+        Available {
+            wordcraft: Some("wordcraft-cli".into()),
+            libreoffice: Some("soffice".into()),
+            word: true,
+        }
+    }
+
+    fn chosen(
+        preference: DocumentEngine,
+        from: Format,
+        to: Format,
+        available: &Available,
+    ) -> Option<&'static str> {
+        choose_engine(preference, from, to, available).map(|e| e.name())
+    }
+
+    #[test]
+    fn auto_uses_wordcraft_for_what_it_can_do_and_falls_back_for_the_rest() {
+        let a = all();
+        for (from, to) in [
+            (Format::Docx, Format::Pdf),
+            (Format::Doc, Format::Pdf),
+            (Format::Markdown, Format::Pdf),
+            (Format::Doc, Format::Docx),
+        ] {
+            assert_eq!(
+                chosen(DocumentEngine::Auto, from, to, &a),
+                Some("WordCraft"),
+                "{from} -> {to}"
+            );
+        }
+        // PDF → DOCX no lo sabe hacer: LibreOffice, y si no está, Word.
+        assert_eq!(
+            chosen(DocumentEngine::Auto, Format::Pdf, Format::Docx, &a),
+            Some("LibreOffice")
+        );
+        let without_lo = Available {
+            libreoffice: None,
+            ..all()
+        };
+        assert_eq!(
+            chosen(DocumentEngine::Auto, Format::Pdf, Format::Docx, &without_lo),
+            Some("Microsoft Word")
+        );
+    }
+
+    #[test]
+    fn without_wordcraft_auto_still_converts_with_libreoffice_or_word() {
+        let a = Available {
+            wordcraft: None,
+            ..all()
+        };
+        assert_eq!(
+            chosen(DocumentEngine::Auto, Format::Docx, Format::Pdf, &a),
+            Some("LibreOffice")
+        );
+        let nothing = Available {
+            wordcraft: None,
+            libreoffice: None,
+            word: false,
+        };
+        assert!(chosen(DocumentEngine::Auto, Format::Docx, Format::Pdf, &nothing).is_none());
+    }
+
+    #[test]
+    fn forcing_an_engine_never_uses_another() {
+        let a = all();
+        assert_eq!(
+            chosen(DocumentEngine::LibreOffice, Format::Docx, Format::Pdf, &a),
+            Some("LibreOffice")
+        );
+        assert_eq!(
+            chosen(DocumentEngine::Word, Format::Docx, Format::Pdf, &a),
+            Some("Microsoft Word")
+        );
+        let only_wordcraft = Available {
+            libreoffice: None,
+            word: false,
+            ..all()
+        };
+        assert!(
+            chosen(
+                DocumentEngine::LibreOffice,
+                Format::Docx,
+                Format::Pdf,
+                &only_wordcraft
+            )
+            .is_none()
+        );
+        // WordCraft elegido a mano para PDF → DOCX: no sabe, y sin otro motor no hay nada.
+        assert!(
+            chosen(
+                DocumentEngine::WordCraft,
+                Format::Pdf,
+                Format::Docx,
+                &only_wordcraft
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn wordcraft_supports_exactly_the_pairs_it_was_tested_on() {
+        assert!(wordcraft_supports(Format::Docx, Format::Pdf));
+        assert!(wordcraft_supports(Format::Doc, Format::Docx));
+        assert!(!wordcraft_supports(Format::Pdf, Format::Docx));
+        assert!(!wordcraft_supports(Format::Docx, Format::Doc));
+    }
+
+    #[test]
+    fn wordcraft_is_found_where_each_package_leaves_it() {
+        let dirs = packaged_wordcraft(Path::new("/opt/app/bin"), "wordcraft-cli");
+        for relative in [
+            "wordcraft/wordcraft-cli",
+            "../Resources/wordcraft/wordcraft-cli",
+            "../lib/Converter/wordcraft/wordcraft-cli",
+            "wordcraft-cli",
+        ] {
+            assert!(
+                dirs.contains(&Path::new("/opt/app/bin").join(relative)),
+                "falta {relative}"
+            );
+        }
+    }
+
+    #[test]
+    fn install_hint_is_specific_to_the_system() {
+        let hint = libreoffice_install_hint();
+        assert!(hint.contains(LIBREOFFICE_ENV));
+        if cfg!(windows) {
+            assert!(hint.contains("puede descargarlo"));
+        } else if cfg!(target_os = "macos") {
+            assert!(hint.contains("brew"));
+        } else {
+            // En Linux la aplicación no descarga nada: no debe prometerlo.
+            assert!(hint.contains("gestor de paquetes"));
+            assert!(!hint.contains("puede descargarlo"));
+        }
+    }
 
     #[test]
     fn declares_exactly_the_supported_pairs() {

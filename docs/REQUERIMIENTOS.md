@@ -32,9 +32,9 @@ Principio: pocas conversiones **que funcionen todas y con buena calidad** antes 
 | Familia | Formatos | Notas |
 |---|---|---|
 | Imágenes | JPG, PNG, WEBP, HEIC, BMP, TIFF, GIF, AVIF, ICO | HEIC: la lectura es el caso común; la **escritura** de HEIC requiere códec HEVC (licencias/patentes) → evaluar |
-| Documentos | imágenes → PDF ✅, PDF → imágenes (PNG/JPG/WEBP/TIFF) ✅, PDF → TXT ✅, PDF → MD ✅ (heurístico), MD → PDF ✅, DOCX/DOC → PDF ✅, PDF → DOCX 🟡, DOC → DOCX ✅, DOCX → TXT ✅, DOCX → MD ⬜ | DOCX/MD↔PDF usa LibreOffice (descarga bajo demanda) o Word (ver sección 7). PDF → DOCX y PDF → MD reconstruyen la estructura: son aproximaciones. Varias imágenes → un solo PDF ⬜ |
+| Documentos | imágenes → PDF ✅, PDF → imágenes (PNG/JPG/WEBP/TIFF) ✅, PDF → TXT ✅, PDF → MD ✅ (heurístico), MD → PDF ✅, DOCX/DOC → PDF ✅, PDF → DOCX 🟡, DOC → DOCX ✅, DOCX → TXT ✅, DOCX → MD ⬜ | DOCX/DOC/MD → PDF y DOC → DOCX usan WordCraft (incluido); PDF → DOCX, LibreOffice (descarga bajo demanda) o Word (ver sección 7). PDF → DOCX y PDF → MD reconstruyen la estructura: son aproximaciones. Varias imágenes → un solo PDF ⬜ |
 | Datos tabulares | CSV ↔ XLSX, CSV ↔ JSON, XLSX → CSV | Puro Rust, alta fiabilidad |
-| Texto/marcado | MD → HTML/PDF/DOCX, TXT → PDF | Por evaluar |
+| Texto/marcado | MD → PDF ✅, MD → DOCX ✅ (propio, Rust puro), MD → HTML ⬜, TXT → PDF ⬜ | MD → PDF con WordCraft pasa por el DOCX propio (D-47) |
 
 Fuera de alcance por ahora: audio/vídeo, archivos comprimidos, CAD.
 
@@ -66,7 +66,7 @@ La paleta no muestra todos los formatos posibles: muestra los que **tienen senti
 
 ## 7. Realidades técnicas que condicionan el diseño
 
-- **DOCX ↔ PDF** (resuelto, D-20/D-26/D-28): no existe en Rust puro. Cascada implementada: **LibreOffice primero** (instalado, o descargado por la propia app: 374 MB una sola vez, verificado con SHA-256, ~1,5 GB en disco, nunca en el instalador base) y Word por PowerShell + COM como respaldo inmediato. Descarga automática solo en Windows x64; en macOS y Linux hay que instalar LibreOffice con el gestor de paquetes o apuntar `CONVERTER_LIBREOFFICE`.
+- **DOCX ↔ PDF** (resuelto, D-20/D-26/D-28): no existe una forma *madura* en Rust puro. Actualización de 2026-10-18: **WordCraft** (alfa, Rust puro, viaja con la aplicación) es ahora el motor principal de DOCX/DOC/Markdown → PDF y DOC → DOCX, con un resultado casi idéntico al de LibreOffice en las pruebas y 50 veces más rápido (D-41, D-44, ver [REFERENCIAS-CRAFT.md](REFERENCIAS-CRAFT.md)); LibreOffice o Word quedan para PDF → DOCX, que WordCraft no hace. Cascada implementada: **LibreOffice primero** (instalado, o descargado por la propia app: 374 MB una sola vez, verificado con SHA-256, ~1,5 GB en disco, nunca en el instalador base) y Word por PowerShell + COM como respaldo inmediato. Descarga automática solo en Windows x64; en macOS y Linux hay que instalar LibreOffice con el gestor de paquetes o apuntar `CONVERTER_LIBREOFFICE`.
 - **PDF → DOCX** (reconstruir maquetación) es un problema abierto: lo realista es extracción de texto/estructura básica; la calidad alta requiere OCR/layout analysis.
 - **HEIC**: x265 (el encoder HEVC de libheif) es GPL y está prohibido por la licencia elegida. Plan: **leer** HEIC con `libheif` (+ libde265, LGPL, enlace dinámico); **escribir** HEIC con los códecs nativos del SO (WIC en Windows, que exige la extensión HEVC de Microsoft instalada; ImageIO en macOS). En Linux la escritura de HEIC queda sin soporte hasta encontrar una vía sin GPL: no se ofrece en la paleta allí.
 - **PDF → imagen/texto** (resuelto): `pdfium` (BSD-3) se carga en tiempo de ejecución desde `pdfium.dll`/`libpdfium.*` mediante `pdfium-render`; la versión fijada y su SHA-256 están en `scripts/fetch-pdfium.ps1`. Ocupa unos 7 MB descomprimida (3,7 MB descargada), así que la propuesta es empaquetarla con el instalador en lugar de descargarla bajo demanda. Imagen → PDF no necesita nada nativo (`pdf-writer`, Rust puro).

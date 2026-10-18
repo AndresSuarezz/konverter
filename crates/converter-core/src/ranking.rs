@@ -66,6 +66,7 @@ pub fn popularity(from: Format, to: Format) -> u8 {
 
         // Markdown: de .md se quiere un PDF; de PDF se quiere texto con estructura.
         (Markdown, Pdf) => 95,
+        (Markdown, Docx) => 75,
         (Pdf, Markdown) => 80,
 
         (Pdf, Png) => 90,

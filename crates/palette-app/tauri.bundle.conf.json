@@ -9,7 +9,13 @@
     "shortDescription": "Convierte archivos con una paleta radial",
     "resources": {
       "../../vendor/bin/pdfium/pdfium.dll": "pdfium/pdfium.dll",
-      "../../vendor/bin/pdfium/LICENSE-pdfium": "pdfium/LICENSE-pdfium"
+      "../../vendor/bin/pdfium/LICENSE-pdfium": "pdfium/LICENSE-pdfium",
+      "../../vendor/bin/wordcraft/wordcraft-cli.exe": "wordcraft/wordcraft-cli.exe",
+      "../../vendor/bin/wordcraft/LICENSE-MIT": "wordcraft/LICENSE-MIT",
+      "../../vendor/bin/wordcraft/LICENSE-APACHE": "wordcraft/LICENSE-APACHE",
+      "../../vendor/bin/wordcraft/NOTICE": "wordcraft/NOTICE",
+      "../../vendor/bin/wordcraft/ATTRIBUTION.md": "wordcraft/ATTRIBUTION.md",
+      "../../vendor/bin/wordcraft/VERSION": "wordcraft/VERSION"
     },
     "windows": {
       "nsis": {
@@ -20,18 +26,6 @@
         "installerHooks": "nsis-hooks.nsh",
         "template": "nsis/installer.nsi",
         "compression": "lzma"
-      }
-    },
-    "linux": {
-      "deb": {
-        "depends": [
-          "libreoffice-writer"
-        ]
-      },
-      "rpm": {
-        "depends": [
-          "libreoffice-writer"
-        ]
       }
     }
   }

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Categories={{categories}}
+{{#if comment}}
+Comment={{comment}}
+{{/if}}
+Exec={{exec}} %F
+StartupWMClass={{exec}}
+Icon={{icon}}
+Name={{name}}
+Terminal=false
+Type=Application
+Keywords=convertir;convert;imagen;image;pdf;csv;docx;markdown;
+MimeType=image/jpeg;image/png;image/webp;image/bmp;image/tiff;image/gif;application/pdf;text/csv;application/json;text/markdown;application/msword;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;

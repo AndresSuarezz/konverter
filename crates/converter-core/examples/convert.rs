@@ -20,6 +20,7 @@ fn main() {
     };
     let options = ConvertOptions {
         document_engine: match rest.first().map(String::as_str) {
+            Some("wordcraft") => DocumentEngine::WordCraft,
             Some("word") => DocumentEngine::Word,
             Some("libreoffice") => DocumentEngine::LibreOffice,
             _ => DocumentEngine::Auto,
