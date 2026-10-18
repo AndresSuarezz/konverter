@@ -12,6 +12,15 @@ Registro cronológico de qué se hizo, qué se decidió y por qué, para poder r
 
 ## Historial
 
+### 2026-10-18 · Sesión 1 (cont. 12) — Instaladores del release con el sistema en el nombre
+
+**Petición del usuario**: que los instaladores de los releases se reconozcan a primera vista añadiendo `Windows`, `Linux` o `macOS` al nombre.
+
+**Resultado**: `release.yml` renombra al reunir los archivos (`Converter_0.1.0_x64-setup_Windows.exe`, `…_amd64_Linux.deb|.AppImage`, `…x86_64_Linux.rpm`, `…_aarch64_macOS.dmg`, `…_x64_macOS.dmg`) y genera `SHA256SUMS.txt`; el borrador lleva el texto de `.github/release-notes.md` y está marcado como pre-release. El release `v0.1.0` terminó en éxito con el flujo nuevo (run `39172699502`).
+1. **Un fallo mío en el camino**: la primera versión del paso de renombrado falló en GitHub (el artefacto de Linux trae subcarpetas `deb/`, `rpm/`, `appimage/` y mi bucle las copiaba como archivos); mi simulación local no incluía esas carpetas. Corregido con `find -type f` y verificado ejecutando **el paso real extraído del flujo** contra una estructura de carpetas como la del artefacto. Lección: simular con la estructura real, no con una imaginada.
+2. **La etiqueta `v0.1.0` se movió dos veces** (borrada y recreada sobre el commit nuevo) para relanzar el release; era seguro porque solo apuntaba a un borrador sin publicar. Si en el futuro el release ya está publicado, no se debe mover una etiqueta: se publica una versión nueva.
+3. **Sin comprobar**: que el borrador contiene los seis archivos con el nombre nuevo (los borradores son privados; la API pública no los lista) y que no quedó mezclado con el borrador antiguo; abrir los instaladores construidos por la CI.
+
 ### 2026-10-18 · Sesión 1 (cont. 11) — Primera ejecución de la CI y primer release (v0.1.0)
 
 **Punto de partida**: el usuario pidió subir todo a GitHub (`AndresSuarezz/konverter`), y después, conectar con el repositorio para «Releases y deployments» y corregir el único fallo de la CI, que le explicó Copilot: dos tests de CSV fallaban solo en Windows.
