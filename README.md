@@ -43,7 +43,7 @@ El proyecto está en **fase inicial (0.1.0)**: el motor de conversión y la apli
 |---|---|---|
 | **Windows 11** (Windows 10 sin probar) | ✅ **Funciona de extremo a extremo** | Atajo global, lectura de la selección del Explorador, paleta, conversión, instalador, desinstalación y ajustes, probado a mano en dos equipos |
 | **Linux** (Ubuntu 22.04 como base) | 🟡 **Compila y se empaqueta; sin atajo ni lectura de selección** | 148 tests pasan, `clippy` limpio, se generan `.deb`, `.rpm` y AppImage con WordCraft dentro, DOCX/Markdown/DOC → PDF tardan ~0,35 s desde el paquete y las 5 conversiones de documentos funcionan también con el LibreOffice del sistema. Falta leer la selección del gestor de archivos y el atajo global, y ver la ventana en un escritorio real |
-| **macOS** | ⬜ **Sin probar** | Hay configuración de empaquetado y de integración continua, pero nadie lo ha compilado todavía en un Mac |
+| **macOS** | 🟡 **Compila y pasa los tests en la CI; la aplicación no se ha ejecutado** | La integración continua de GitHub compila, pasa `clippy` y los tests en macOS, y construye el `.dmg` (Apple silicon e Intel). Nadie ha abierto la aplicación en un Mac, y sin firmar ni notarizar macOS la bloqueará |
 
 En Linux y macOS la paleta se abre con archivos pasados como argumento o arrastrándolos sobre ella (en Linux, el acceso directo también declara los formatos que convierte para «Abrir con», aunque aún no se ha comprobado en un gestor de archivos real); todavía no lee lo que tienes seleccionado en el gestor.
 
@@ -79,7 +79,7 @@ Para desinstalar: *Configuración → Aplicaciones*, o la tuerca → *Desinstala
 
 ### Linux
 
-Los paquetes los genera el flujo de lanzamiento (`.github/workflows/release.yml`, que aún no se ha ejecutado en GitHub) o se construyen a mano según [Compilar](#compilar-desde-el-código):
+Los paquetes los genera el flujo de lanzamiento (`.github/workflows/release.yml`: al subir una etiqueta `v*` construye los paquetes de los tres sistemas y deja un borrador de release) o se construyen a mano según [Compilar](#compilar-desde-el-código):
 
 ```bash
 sudo apt install ./Converter_0.1.0_amd64.deb         # Debian, Ubuntu y derivadas

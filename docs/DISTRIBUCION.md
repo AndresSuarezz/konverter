@@ -70,13 +70,13 @@ wsl --unregister cvt-linux   # al terminar: borra solo esa distribución
 ## macOS (configuración escrita, sin probar)
 
 - `crates/palette-app/tauri.bundle.macos.conf.json` genera `.app` y `.dmg`; pdfium va en `Contents/Resources/pdfium/libpdfium.dylib` y el motor lo busca ahí. Se construye **una variante por arquitectura** en la CI (`macos-latest` para Apple silicon y `macos-15-intel`); un binario universal exigiría `lipo` sobre la `libpdfium.dylib`.
-- **Nadie lo ha compilado en un Mac.** Lo único comprobado es que el código compila y pasa los tests en Windows y Linux; la integración continua es la forma de verlo en macOS.
+- **Compila y pasa los tests en macOS** (`macos-latest`, Apple silicon, en la CI de GitHub: `clippy -D warnings` y `cargo test --workspace`), y el flujo de release construyó los `.dmg` de Apple silicon e Intel (`macos-15-intel`) sin errores. **Nadie ha abierto la aplicación en un Mac**: la ventana, la bandeja, el atajo, la apertura de archivos y el comportamiento de Gatekeeper con un `.dmg` sin firmar están sin ver.
 - Incluir `LibreOffice.app` (extraída del `.dmg` con `hdiutil`) en `Converter.app/Contents/Resources/` y podarla. El motor ya busca ahí (`../Resources/LibreOffice.app/Contents/MacOS/soffice`).
 - **Requiere firmar y notarizar**: todo binario anidado (incluida la `libpdfium.dylib`) debe llevar la firma del desarrollador (Developer ID) y el *hardened runtime*, y eso exige una cuenta de Apple Developer. Sin notarizar, Gatekeeper bloquea la aplicación. El flujo completo (firma de dentro a fuera, `notarytool`, `stapler`) está en `packaging/macos/package.sh` de PdfCraft; ver [REFERENCIAS-CRAFT.md](REFERENCIAS-CRAFT.md).
 
 ## Integración continua
 
-En `.github/workflows/` (**todavía no se han ejecutado en GitHub**; lo único probado es lo que hacen sus pasos, a mano en Windows y Linux):
+En `.github/workflows/` (**ejecutados en GitHub el 2026-10-18**: `ci.yml` en verde en Windows, Linux y macOS tras corregir los fixtures —ver la bitácora—, y `release.yml` terminó en éxito con la etiqueta `v0.1.0`, dejando un borrador de release):
 
 - `ci.yml`: en cada `push` a `main` y en cada PR, en Windows, Ubuntu 22.04 y macOS: descarga pdfium, `clippy -D warnings` y `cargo test --workspace` (más `fmt` en Linux). Un trabajo aparte pasa `cargo deny check`.
 - `release.yml`: por etiqueta `v*` o a mano. Compila `wordcraft-cli` (~5 min, con caché por versión del script), construye el instalador de Windows (`scripts/build-installers.ps1`), `.deb`, `.rpm` y AppImage, y los `.dmg` de macOS, y deja un **borrador** de release. Nada va firmado.
