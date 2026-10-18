@@ -12,7 +12,7 @@ use windows::Win32::UI::Shell::{
     ShellWindows,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetForegroundWindow, IsWindowVisible,
+    GW_HWNDPREV, GetClassNameW, GetForegroundWindow, GetParent, GetWindow, IsWindowVisible,
 };
 use windows::core::Interface;
 
@@ -84,14 +84,18 @@ fn shell_windows() -> Result<IShellWindows, ShellError> {
     unsafe { CoCreateInstance(&ShellWindows, None, CLSCTX_ALL) }.map_err(platform)
 }
 
-/// Con pestañas, varias entradas de `IShellWindows` comparten el mismo `HWND` de nivel
-/// superior; la pestaña activa es la única cuya vista está visible.
+/// Con pestañas, varias entradas de `IShellWindows` comparten el mismo `HWND` de nivel superior
+/// (una por pestaña) y hay que elegir **la pestaña activa**. La visibilidad de su vista no sirve
+/// (una pestaña inactiva sigue «visible», y con la ventana minimizada ninguna lo parece): la
+/// pestaña activa es la ventana `ShellTabWindowClass` que está más arriba en el orden Z entre sus
+/// hermanas. Medido en Windows 11 (compilación 26300) cambiando de pestaña con UI Automation.
 fn selection_in_explorer_window(top_level: HWND) -> Result<Vec<PathBuf>, ShellError> {
     let windows = shell_windows()?;
-    // SAFETY: todas las llamadas son métodos COM sobre interfaces válidas obtenidas arriba.
+    // SAFETY: todas las llamadas son métodos COM y de ventanas sobre interfaces y `HWND` válidos.
     unsafe {
         let count = windows.Count().map_err(platform)?;
-        let mut fallback = None;
+        let mut views = Vec::new();
+        let mut candidates = Vec::new();
         for index in 0..count {
             let Ok(dispatch) = windows.Item(&VARIANT::from(index)) else {
                 continue;
@@ -103,20 +107,70 @@ fn selection_in_explorer_window(top_level: HWND) -> Result<Vec<PathBuf>, ShellEr
                 continue;
             }
             let view = active_view(&dispatch)?;
-            let visible = view
-                .GetWindow()
-                .map(|w| IsWindowVisible(w).as_bool())
-                .unwrap_or(false);
-            if visible {
-                return paths_from_view(&view);
-            }
-            fallback.get_or_insert(view);
+            let window = view.GetWindow().ok();
+            candidates.push(TabCandidate {
+                z_rank: window.and_then(tab_z_rank),
+                visible: window.is_some_and(|w| IsWindowVisible(w).as_bool()),
+            });
+            views.push(view);
         }
-        match fallback {
-            Some(view) => paths_from_view(&view),
+        match choose_tab(&candidates).and_then(|i| views.get(i)) {
+            Some(view) => paths_from_view(view),
             None => Err(ShellError::NotAFileManager),
         }
     }
+}
+
+/// Lo que se sabe de cada pestaña para decidir cuál es la activa.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct TabCandidate {
+    /// Cuántas ventanas hermanas hay por encima de su `ShellTabWindowClass` (0 = la de más
+    /// arriba), o `None` si la vista no cuelga de una (Explorador sin pestañas).
+    z_rank: Option<usize>,
+    visible: bool,
+}
+
+/// Índice de la pestaña activa: la más alta en el orden Z; si no hay datos de pestañas, la
+/// primera con la vista visible; y si tampoco, la primera.
+fn choose_tab(candidates: &[TabCandidate]) -> Option<usize> {
+    candidates
+        .iter()
+        .enumerate()
+        .filter_map(|(index, c)| c.z_rank.map(|rank| (rank, index)))
+        .min()
+        .map(|(_, index)| index)
+        .or_else(|| candidates.iter().position(|c| c.visible))
+        .or_else(|| (!candidates.is_empty()).then_some(0))
+}
+
+/// Posición en el orden Z de la pestaña (`ShellTabWindowClass`) de la que cuelga `view`: cuántas
+/// ventanas hermanas la tapan. Más bajo = más arriba = pestaña activa.
+fn tab_z_rank(view: HWND) -> Option<usize> {
+    let mut current = view;
+    for _ in 0..16 {
+        if class_name(current) == "ShellTabWindowClass" {
+            let mut rank = 0;
+            let mut sibling = current;
+            // SAFETY: `GetWindow` solo consulta el orden de ventanas; un resultado nulo o con error
+            // significa que no hay más hermanas.
+            while let Ok(above) = unsafe { GetWindow(sibling, GW_HWNDPREV) } {
+                if above.0.is_null() {
+                    break;
+                }
+                rank += 1;
+                sibling = above;
+                if rank > 4096 {
+                    return None;
+                }
+            }
+            return Some(rank);
+        }
+        // SAFETY: consulta del padre de una ventana; el resultado puede ser nulo.
+        current = unsafe { GetParent(current) }
+            .ok()
+            .filter(|p| !p.0.is_null())?;
+    }
+    None
 }
 
 fn selection_on_desktop() -> Result<Vec<PathBuf>, ShellError> {
@@ -171,5 +225,71 @@ unsafe fn paths_from_view(
         unsafe { CoTaskMemFree(Some(name.0 as *const _)) };
         paths.push(PathBuf::from(path?));
     }
+    // Hay selección, pero nada con ruta en el disco (carpetas virtuales como «Inicio» o la
+    // Papelera): se dice, en vez de dar a entender que no se seleccionó nada.
+    if paths.is_empty() && count > 0 {
+        return Err(ShellError::Platform(
+            "lo seleccionado no son archivos del disco (por ejemplo, está en «Inicio» o en la \
+             Papelera); ábrelo desde su carpeta"
+                .into(),
+        ));
+    }
     Ok(paths)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tab(z_rank: Option<usize>, visible: bool) -> TabCandidate {
+        TabCandidate { z_rank, visible }
+    }
+
+    #[test]
+    fn the_active_tab_is_the_one_on_top_of_the_z_order_even_if_all_look_visible() {
+        // El caso real: dos pestañas «visibles»; la activa es la de menor posición en el orden Z.
+        assert_eq!(
+            choose_tab(&[tab(Some(3), true), tab(Some(2), true)]),
+            Some(1)
+        );
+        assert_eq!(
+            choose_tab(&[tab(Some(1), true), tab(Some(3), true)]),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn a_minimized_window_where_nothing_looks_visible_still_has_an_active_tab() {
+        // El caso del usuario: ventana minimizada, ninguna pestaña «visible».
+        assert_eq!(
+            choose_tab(&[tab(Some(3), false), tab(Some(2), false)]),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn without_tab_windows_it_falls_back_to_visibility_and_then_to_the_first() {
+        assert_eq!(choose_tab(&[tab(None, false), tab(None, true)]), Some(1));
+        assert_eq!(choose_tab(&[tab(None, false), tab(None, false)]), Some(0));
+        assert_eq!(choose_tab(&[tab(None, true)]), Some(0));
+        assert_eq!(choose_tab(&[]), None);
+    }
+
+    #[test]
+    fn ties_keep_the_first_and_tab_data_wins_over_visibility() {
+        assert_eq!(
+            choose_tab(&[tab(Some(2), true), tab(Some(2), true)]),
+            Some(0)
+        );
+        // Una pestaña con datos de orden Z gana a otra que solo «parece» visible.
+        assert_eq!(choose_tab(&[tab(None, true), tab(Some(5), false)]), Some(1));
+    }
+
+    #[test]
+    fn a_window_without_children_has_no_tab_rank() {
+        // El escritorio de Windows no cuelga de ninguna `ShellTabWindowClass`.
+        // SAFETY: `GetDesktopWindow` no tiene precondiciones.
+        let desktop = unsafe { windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow() };
+        assert_eq!(tab_z_rank(desktop), None);
+    }
 }

@@ -12,6 +12,16 @@ Registro cronológico de qué se hizo, qué se decidió y por qué, para poder r
 
 ## Historial
 
+### 2026-10-18 · Sesión 1 (cont. 13) — «No hay nada seleccionado» en el Explorador con pestañas
+
+**Problema del usuario**: con un documento seleccionado en el Escritorio la paleta funciona, pero dentro del Explorador de archivos dice que no hay nada seleccionado.
+
+**Causa** (reproducida con ventanas reales): su ventana de Explorador tiene **dos pestañas**, que `IShellWindows` lista como dos entradas con el mismo `HWND`. El código elegía la pestaña activa por «vista visible», y eso no distingue nada: una pestaña **inactiva** también sale visible (devolvía la selección de la pestaña equivocada y se paraba sin mirar la activa), y con la ventana **minimizada** ninguna sale visible, así que caía a «la primera entrada» (la pestaña sin selección: 0 archivos, mientras la segunda tenía 1). En una ventana de una sola pestaña siempre funcionó, por eso el fallo no se vio antes.
+**Arreglo** (`os-shell/src/windows_impl.rs`): la pestaña activa es la ventana `ShellTabWindowClass` más alta del orden Z entre sus hermanas (comprobado cambiando de pestaña con UI Automation: el orden se invierte); si no hay `ShellTabWindowClass`, visibilidad y luego la primera. Además, si hay elementos seleccionados pero sin ruta en disco (Inicio, Papelera) ahora lo dice, en vez de «nada seleccionado».
+**Verificación**: ventana de prueba con 2 pestañas y un archivo distinto seleccionado en cada una: lee el archivo correcto las 3 veces que se cambia de pestaña (A → B → A); en la ventana real del usuario (minimizada, 2 pestañas) pasó de 0 a 1 archivo; 5 tests nuevos de la regla de elección (incluida la ventana minimizada y el empate); `fmt`, `clippy -D warnings` y toda la batería en verde.
+**Un error mío**: para armar la ventana de pruebas usé primero `SendKeys` (Ctrl+T, Ctrl+L y una ruta con Enter) y fue a la ventana con el foco, que era el terminal del usuario (así lo supe porque me devolvió la ruta). No se hizo daño, pero se cambió a Automatización de UI, que actúa sobre un elemento concreto de la ventana; queda como regla en `CLAUDE.md`.
+**Sin probar**: el fallo real **con la paleta y el atajo** (la prueba usó el mismo código de lectura con la ventana indicada por `HWND`, no la pulsación real del atajo con el Explorador en primer plano); Explorador de Windows 10 (sin pestañas); varias ventanas a la vez; selección en «Inicio» (solo se contempla el aviso).
+
 ### 2026-10-18 · Sesión 1 (cont. 12) — Instaladores del release con el sistema en el nombre
 
 **Petición del usuario**: que los instaladores de los releases se reconozcan a primera vista añadiendo `Windows`, `Linux` o `macOS` al nombre.
