@@ -17,7 +17,8 @@ Registro cronológico de qué se hizo, qué se decidió y por qué, para poder r
 **Petición del usuario**: commit, push y un release nuevo con el arreglo de las pestañas del Explorador (cont. 13).
 
 **Resultado**: la versión sube a **0.1.1** (`Cargo.toml`, `tauri.conf.json`, las dependencias entre crates y `Cargo.lock`, solo los cuatro crates propios) y se publica la etiqueta **`v0.1.1`**, sin tocar `v0.1.0`: una etiqueta de un release ya publicado no se mueve. Los instaladores salen con `0.1.1` y el sistema en el nombre. El README usa los nombres nuevos de los paquetes de Linux.
-1. **Nota**: el usuario pidió el release sin haber confirmado aún que el arreglo funciona con la pulsación real del atajo y el Explorador en primer plano (la verificación fue con ventanas reales leídas por `HWND`); si algo falla, se corrige en una `v0.1.2`.
+1. **Resultado en GitHub**: `release.yml` en éxito (Windows, Linux, macOS Apple silicon e Intel y el borrador) y `ci.yml` en verde en los tres sistemas más `cargo-deny`, sobre el commit `8676068`. El borrador `v0.1.1` queda pendiente de que el usuario lo revise y lo publique en la web (no se comprobó su lista de archivos: los borradores son privados).
+2. **Nota**: el usuario pidió el release sin haber confirmado aún que el arreglo funciona con la pulsación real del atajo y el Explorador en primer plano (la verificación fue con ventanas reales leídas por `HWND`); si algo falla, se corrige en una `v0.1.2`.
 
 ### 2026-10-18 · Sesión 1 (cont. 13) — «No hay nada seleccionado» en el Explorador con pestañas
 
