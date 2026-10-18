@@ -125,11 +125,27 @@ jobs:
     needs: [windows, linux, macos]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      # Todos los instaladores en una sola carpeta, con sus sumas SHA-256 para verificar la descarga.
+      - name: Reunir los archivos y calcular las sumas
+        run: |
+          mkdir -p release
+          cp artifacts/*/* release/
+          (cd release && sha256sum * > SHA256SUMS.txt)
+          ls -la release
+      # El texto de .github/release-notes.md va primero; GitHub añade debajo la lista de cambios.
+      # Es un borrador: se revisa en la web y se pulsa «Publish» (ahí los visitantes ven los
+      # instaladores en «Assets», junto al código fuente que GitHub añade solo). Para que se
+      # publique sin pasar por ahí, cambia `draft` a `false`.
       - uses: softprops/action-gh-release@v2
         with:
+          name: Converter ${{ github.ref_name }}
           draft: true
-          files: artifacts/**/*
+          prerelease: true
+          body_path: .github/release-notes.md
+          generate_release_notes: true
+          files: release/*
           fail_on_unmatched_files: true
