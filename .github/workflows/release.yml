@@ -129,11 +129,24 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      # Todos los instaladores en una sola carpeta, con sus sumas SHA-256 para verificar la descarga.
-      - name: Reunir los archivos y calcular las sumas
+      # Todos los instaladores en una sola carpeta, con el sistema añadido al nombre para que se
+      # reconozcan de un vistazo (Converter_0.1.0_x64-setup.exe -> ..._x64-setup_Windows.exe), y con
+      # sus sumas SHA-256 para verificar la descarga.
+      - name: Reunir los archivos, nombrarlos por sistema y calcular las sumas
         run: |
           mkdir -p release
-          cp artifacts/*/* release/
+          for dir in artifacts/*/; do
+            case "$(basename "$dir")" in
+              windows) label=Windows ;;
+              linux) label=Linux ;;
+              macos-*) label=macOS ;;
+              *) echo "artefacto desconocido: $dir" >&2; exit 1 ;;
+            esac
+            for file in "$dir"*; do
+              base="$(basename "$file")"
+              cp "$file" "release/${base%.*}_${label}.${base##*.}"
+            done
+          done
           (cd release && sha256sum * > SHA256SUMS.txt)
           ls -la release
       # El texto de .github/release-notes.md va primero; GitHub añade debajo la lista de cambios.

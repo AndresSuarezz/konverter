@@ -6,9 +6,11 @@
 
 | Sistema | Archivo | Notas |
 |---|---|---|
-| **Windows 11** (x64) | `Converter_<versión>_x64-setup.exe` | Instalador de unos 16 MB; no pide administrador. Incluye todo lo necesario salvo PDF → Word, que descarga LibreOffice la primera vez |
-| **Linux** (x86_64) | `Converter_<versión>_amd64.deb` · `Converter-<versión>-1.x86_64.rpm` · `Converter_<versión>_amd64.AppImage` | `.deb` para Debian/Ubuntu, `.rpm` para Fedora/openSUSE, AppImage para cualquier distribución. Necesitan glibc 2.35 o superior |
-| **macOS** | `*.dmg` (Apple silicon o Intel) | Sin firmar ni notarizar: macOS lo bloqueará hasta que lo permitas |
+| **Windows 11** (x64) | `…_Windows.exe` | Instalador de unos 16 MB; no pide administrador. Incluye todo lo necesario salvo PDF → Word, que descarga LibreOffice la primera vez |
+| **Linux** (x86_64) | `…_Linux.deb` · `…_Linux.rpm` · `…_Linux.AppImage` | `.deb` para Debian/Ubuntu, `.rpm` para Fedora/openSUSE, AppImage para cualquier distribución. Necesitan glibc 2.35 o superior |
+| **macOS** | `…_aarch64_macOS.dmg` (Apple silicon: M1, M2, M3…) · `…_x64_macOS.dmg` (Intel) | Sin firmar ni notarizar: macOS lo bloqueará hasta que lo permitas |
+
+El nombre de cada archivo termina con el sistema al que corresponde (`Windows`, `Linux`, `macOS`).
 
 Verifica la descarga comparando su suma con `SHA256SUMS.txt` (`Get-FileHash <archivo>` en Windows; `sha256sum <archivo>` en Linux; `shasum -a 256 <archivo>` en macOS).
 
@@ -16,7 +18,7 @@ Verifica la descarga comparando su suma con `SHA256SUMS.txt` (`Get-FileHash <arc
 
 - **Windows**: SmartScreen puede mostrar «Windows protegió su PC»: pulsa *Más información → Ejecutar de todas formas*.
 - **macOS**: abre el `.dmg`, arrastra la aplicación a *Aplicaciones* y la primera vez ábrela con clic derecho → *Abrir*.
-- **Linux**: `sudo apt install ./Converter_<versión>_amd64.deb`, o `chmod +x` al AppImage y ejecútalo.
+- **Linux**: `sudo apt install ./<archivo>.deb`, o `chmod +x` al AppImage y ejecútalo.
 
 La documentación completa está en el [README](../blob/main/README.md).
 
