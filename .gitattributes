@@ -2,3 +2,8 @@
 # editen en Windows: con CRLF, `bash` falla en la CI con «\r: orden no encontrada».
 *.sh text eol=lf
 *.desktop text eol=lf
+
+# Los archivos de prueba son datos: sus bytes importan. Con `core.autocrlf=true` (el valor por
+# defecto de Git para Windows, también en la CI) Git cambiaría los saltos de línea de dentro de las
+# celdas CSV entre comillas (un `\n` pasaba a `\r\n`) y los tests fallaban solo en Windows.
+crates/converter-core/tests/fixtures/** -text
