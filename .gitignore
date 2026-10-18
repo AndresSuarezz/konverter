@@ -1,0 +1,5 @@
+/target
+.claude/settings.local.json
+# Binarios de terceros descargados (pdfium, tesseract, libheif...)
+/vendor/bin
+/dist

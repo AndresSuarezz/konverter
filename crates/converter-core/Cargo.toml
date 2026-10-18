@@ -1,0 +1,23 @@
+[package]
+name = "converter-core"
+description = "Motor de conversión de archivos: grafo de formatos, conversores y proveedores OCR"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+calamine = { version = "0.36.1", features = ["dates"] }
+chrono = { version = "0.4.45", default-features = false, features = ["alloc"] }
+csv = "1.4.0"
+flate2 = "1.1.10"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp", "bmp", "tiff", "gif"] }
+pdf-writer = "0.15.0"
+pdfium-render = "0.9.4"
+pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
+roxmltree = "0.21.1"
+rust_xlsxwriter = "0.100.0"
+serde_json = { version = "1.0.154", features = ["preserve_order"] }
+tempfile = "3.27.0"
+thiserror = "2.0.21"
+webp = "0.3.1"
+zip = { version = "9.0.5", default-features = false, features = ["deflate"] }

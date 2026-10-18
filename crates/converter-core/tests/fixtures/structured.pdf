@@ -1,0 +1,154 @@
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 8 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 7 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+7 0 obj
+<< /Length 834 >>
+stream
+BT
+/F1 9 Tf
+72 810 Td
+(Informe interno) Tj
+ET
+BT
+/F1 9 Tf
+260 30 Td
+(Página 1) Tj
+ET
+BT
+/F2 24 Tf
+72 740 Td
+(Manual de usuario) Tj
+ET
+BT
+/F1 11 Tf
+72 700 Td
+(Este manual explica la docu-) Tj
+ET
+BT
+/F1 11 Tf
+72 686 Td
+(mentación del programa y sus) Tj
+ET
+BT
+/F1 11 Tf
+72 672 Td
+(funciones principales.) Tj
+ET
+BT
+/F1 11 Tf
+72 640 Td
+(Lee con cuidado ) Tj
+/F2 11 Tf
+(importante) Tj
+/F1 11 Tf
+( antes de empezar.) Tj
+ET
+BT
+/F2 16 Tf
+72 600 Td
+(Instalación) Tj
+ET
+BT
+/F1 11 Tf
+72 570 Td
+(• Descargar el instalador) Tj
+ET
+BT
+/F1 11 Tf
+72 556 Td
+(• Ejecutarlo y aceptar) Tj
+ET
+BT
+/F1 11 Tf
+72 530 Td
+(1. Abrir la aplicación) Tj
+ET
+BT
+/F1 11 Tf
+72 516 Td
+(2. Pulsar el atajo) Tj
+ET
+BT
+/F3 10 Tf
+72 480 Td
+(cargo build --release) Tj
+ET
+BT
+/F3 10 Tf
+84 468 Td
+(converter.exe) Tj
+ET
+BT
+/F1 11 Tf
+72 120 Td
+(Esta frase termina en la página) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 9 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+9 0 obj
+<< /Length 250 >>
+stream
+BT
+/F1 9 Tf
+72 810 Td
+(Informe interno) Tj
+ET
+BT
+/F1 9 Tf
+260 30 Td
+(Página 2) Tj
+ET
+BT
+/F1 11 Tf
+72 760 Td
+(siguiente sin cortar el párrafo.) Tj
+ET
+BT
+/F2 16 Tf
+72 700 Td
+(Notas) Tj
+ET
+BT
+/F1 11 Tf
+72 670 Td
+(Texto final de la segunda página.) Tj
+ET
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000224 00000 n 
+0000000326 00000 n 
+0000000421 00000 n 
+0000000567 00000 n 
+0000001452 00000 n 
+0000001598 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+1899
+%%EOF

@@ -1,0 +1,76 @@
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 5 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+5 0 obj
+<< /Length 105 >>
+stream
+BT
+/F1 24 Tf
+72 742 Td
+(Página 1) Tj
+0 -36 Td
+(Hola mundo, ñandú y café) Tj
+ET
+0 0 0 rg 72 72 200 40 re f
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Contents 7 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+7 0 obj
+<< /Length 106 >>
+stream
+BT
+/F1 24 Tf
+72 495 Td
+(Página 2 \(apaisada\)) Tj
+0 -36 Td
+(Segunda hoja) Tj
+ET
+0 0 0 rg 72 72 200 40 re f
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 9 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+9 0 obj
+<< /Length 98 >>
+stream
+BT
+/F1 24 Tf
+72 742 Td
+(Página 3) Tj
+0 -36 Td
+(Fin del documento) Tj
+ET
+0 0 0 rg 72 72 200 40 re f
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000133 00000 n 
+0000000230 00000 n 
+0000000356 00000 n 
+0000000512 00000 n 
+0000000638 00000 n 
+0000000795 00000 n 
+0000000921 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+1069
+%%EOF

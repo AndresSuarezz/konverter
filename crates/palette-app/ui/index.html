@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Converter</title>
+  <link rel="stylesheet" href="palette.css">
+</head>
+<body>
+  <main class="wheel" id="wheel" aria-label="Paleta de conversión">
+    <svg id="ring" viewBox="0 0 460 460" aria-hidden="false"></svg>
+    <section class="settings" id="settings" hidden aria-label="Configuración">
+      <header class="settings-head">
+        <h2>Configuración</h2>
+        <button type="button" class="close" id="settings-close" aria-label="Cerrar configuración">✕</button>
+      </header>
+      <div class="settings-body" id="settings-body"></div>
+    </section>
+    <section class="center" id="center" aria-live="polite">
+      <div class="src-label" id="src-label"></div>
+      <div class="src-name" id="src-name"></div>
+      <div class="ocr" role="group" aria-label="Reconocimiento de texto (OCR)">
+        <button type="button" class="ocr-opt on" aria-pressed="true">sin OCR</button>
+        <button type="button" class="ocr-opt" aria-pressed="false" disabled title="Próximamente: OCR con Tesseract local">con OCR</button>
+      </div>
+      <div class="actions" id="actions" hidden>
+        <button type="button" class="act primary" id="act-yes">Descargar</button>
+        <button type="button" class="act" id="act-no">Ahora no</button>
+      </div>
+      <div class="bar" id="bar" hidden role="progressbar" aria-label="Progreso"><div class="fill" id="bar-fill"></div></div>
+    </section>
+  </main>
+  <script src="palette.js"></script>
+</body>
+</html>

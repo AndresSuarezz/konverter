@@ -1,0 +1,26 @@
+[package]
+name = "palette-app"
+description = "Paleta radial de conversión (Tauri 2): cliente fino sobre converter-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "converter"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+components = { version = "0.1.0", path = "../components" }
+converter-core = { path = "../converter-core" }
+os-shell = { path = "../os-shell" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-single-instance = "2"
+
+[dev-dependencies]
+tempfile = "3"
